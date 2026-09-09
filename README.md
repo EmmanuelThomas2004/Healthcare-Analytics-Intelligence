@@ -550,6 +550,8 @@ to create a complete analytical environment for understanding:
 
 <strong>597K+ Records • 33 Hospitals • 5 Dashboards • End-to-End Analytics</strong>
 
+Project by
+
 ### Emmanuel Thomas
 
 </p>
