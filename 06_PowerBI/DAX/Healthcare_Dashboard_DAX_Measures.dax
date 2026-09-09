@@ -1,0 +1,343 @@
+Total Admissions = DISTINCTCOUNT(DIM_ADMISSION[admission_id])
+
+Total Patients = DISTINCTCOUNT(DIM_PATIENT[patient_id])
+
+30 Day Readmission Rate = DIVIDE(SUM(FACT_ADMISSIONS[readmitted_within_30_days]),COUNTROWS(FACT_ADMISSIONS))
+
+Average Length of Stay = AVERAGE(FACT_ADMISSIONS[length_of_stay_days])
+
+Total Government Subsidy =SUM(FACT_BILLING[government_subsidy_inr])
+
+Total Patient Out of Pocket = SUM(FACT_BILLING[patient_out_of_pocket_inr])
+
+Total Bed Capacity = SUM(DIM_HOSPITAL[bed_capacity])Insurance Performance = DIVIDE(DIM_PATIENT[Patients by Insurance Type],CALCULATE(DIM_PATIENT[Patients by Insurance Type],ALL(DIM_PATIENT[insurance_type])))
+ICU Admission Share = DIVIDE(CALCULATE(COUNTROWS(FACT_ADMISSIONS),FACT_ADMISSIONS[ward_type] = "ICU"),CALCULATE(COUNTROWS(FACT_ADMISSIONS)))
+
+Average Procedures per Admission = AVERAGE(FACT_ADMISSIONS[procedure_count])
+
+Total Diagnoses = COUNTROWS(FACT_DIAGNOSES)
+
+Admissions by Discharge Status = COUNTROWS(FACT_ADMISSIONS)
+
+Total Patients by Gender = COUNTROWS(DIM_PATIENT)
+
+Age Group =
+SWITCH(
+    TRUE(),
+    DIM_PATIENT[patient_age] <= 17, "0-17",
+    DIM_PATIENT[patient_age] <= 35, "18-35",
+    DIM_PATIENT[patient_age] <= 65, "36-65",
+    "66+"
+)
+
+Patients by Age Group = COUNTROWS(DIM_PATIENT)
+
+Patients by Insurance Type = COUNTROWS(DIM_PATIENT)
+
+Healthcare Cost by Billing Category = SUM(FACT_BILLING[total_cost_inr])
+
+Average LOS by Ward = AVERAGE(FACT_ADMISSIONS[length_of_stay_days])
+
+Admissions by Hospital = COUNTROWS(FACT_ADMISSIONS)
+
+Patients by State = COUNTROWS(DIM_PATIENT)
+
+Monthly Admissions = COUNTROWS(FACT_ADMISSIONS)
+
+Ward Performance =
+VAR WardAdmissions = COUNTROWS(FACT_ADMISSIONS)
+VAR TotalAdmissions =
+    CALCULATE(
+        COUNTROWS(FACT_ADMISSIONS),
+        ALL(FACT_ADMISSIONS[ward_type])
+    )
+RETURN
+DIVIDE(WardAdmissions, TotalAdmissions)
+
+Genral Performance  = DIVIDE(CALCULATE(COUNTROWS(FACT_ADMISSIONS),FACT_ADMISSIONS[ward_type] = 
+"General"),CALCULATE(COUNTROWS(FACT_ADMISSIONS),all(FACT_ADMISSIONS[ward_type])))
+
+HDU Performance =
+DIVIDE(
+    CALCULATE(
+        COUNTROWS(FACT_ADMISSIONS),
+        FACT_ADMISSIONS[ward_type] = "HDU"
+    ),
+    CALCULATE(
+        COUNTROWS(FACT_ADMISSIONS),
+        ALL(FACT_ADMISSIONS[ward_type])
+    )
+)
+
+ICU PERFORMANCE = DIVIDE(CALCULATE(COUNTROWS(FACT_ADMISSIONS),FACT_ADMISSIONS[ward_type] = "HDU"),CALCULATE(COUNTROWS(FACT_ADMISSIONS),ALL(FACT_ADMISSIONS)))
+
+NICU Performance =
+DIVIDE(
+    CALCULATE(
+        COUNTROWS(FACT_ADMISSIONS),
+        FACT_ADMISSIONS[ward_type] = "NICU"
+    ),
+    CALCULATE(
+        COUNTROWS(FACT_ADMISSIONS),
+        ALL(FACT_ADMISSIONS[ward_type])
+    )
+)
+
+Insurance Performance = DIVIDE([Patients by Insurance Type],CALCULATE([Patients by Insurance Type],ALL(DIM_PATIENT[insurance_type])))
+
+Gender Name = SWITCH(DIM_PATIENT[gender],"M","Male","F","Female","Other")
+
+Gender_Performance = DIVIDE([Total Patients by Gender],CALCULATE([Total Patients by Gender],ALL(DIM_PATIENT[Gender Name])))
+
+Gender Remaining = 1 - [Gender_Performance]
+
+LOS Progress =
+DIVIDE(
+    [Average Length of Stay],
+    30
+)
+ICU ADMISSION SHARE  = DIVIDE(CALCULATE(COUNTROWS(DIM_ADMISSION),FACT_ADMISSIONS[ward_type] = "ICU"),COUNTROWS(FACT_ADMISSIONS))
+ICU Share Remaining = 1 - [ICU Admission Share]
+
+
+Procedure Progress =
+DIVIDE(
+    [Average Procedures per Admission],
+    15
+)
+
+Average Charlson Index = AVERAGE(FACT_ADMISSIONS[charlson_comorbidity_index])
+Patient Growth % = 
+VAR CurrentMonthPatients =
+    CALCULATE(
+        [Monthly Patients],
+        LASTDATE(DIM_DATE[Date])
+    )
+VAR PreviousMonthPatients =
+    CALCULATE(
+        [Monthly Patients],
+        DATEADD(DIM_DATE[Date], -1, MONTH)
+    )
+RETURN
+DIVIDE(
+    CurrentMonthPatients - PreviousMonthPatients,
+    PreviousMonthPatients
+)
+
+Admision Growth % = VAR CURENTYEAR = [Total_Admissions]
+VAR PREYEAR = CALCULATE([Total_Admissions],DATEADD(DIM_DATE[Date],-1,YEAR))
+RETURN
+DIVIDE(CURENTYEAR-PREYEAR,PREYEAR,0)
+
+
+Emergency Admission Rate % = 
+DIVIDE(
+    CALCULATE(
+        [Total_Admissions],
+        FACT_ADMISSIONS[Admission_Type] = "Emergency"
+    ),
+    [Total_Admissions],
+    0
+)
+
+Previous Period Cost =
+CALCULATE(
+    [Healthcare Cost Trend],
+    DATEADD(DIM_DATE[Date], -1, MONTH)
+)
+Total Hospital = DISTINCTCOUNT(DIM_HOSPITAL[hospital_id])
+
+Hospital Cost Rank  = RANKX(ALL(DIM_HOSPITAL[hospital_name]),[Total Healthcare Cost],,DESC,Dense)
+
+Top 5 Hospital Cost = IF(DIM_HOSPITAL[Hospital Cost Rank] <= 5,DIM_HOSPITAL[Hospital Cost Rank])
+
+
+Hospital Government Subsidy =
+CALCULATE(
+    [Total Government Subsidy],
+    TREATAS(
+        VALUES(DIM_HOSPITAL[hospital_id]),
+        DIM_ADMISSION[hospital_id]
+    )
+)
+
+Bed Growth  = VAR CURRENTYEAR  = [Total Bed Capacity]
+VAR PREV = CALCULATE([Total Bed Capacity],DATEADD(DIM_DATE[Date],-1,YEAR))
+RETURN
+DIVIDE(CURRENTYEAR-PREV,PREV,0)
+
+Average Cost per Patient =
+DIVIDE(
+    [Total Healthcare Cost],
+    [Total Patients]
+)
+
+Average Beds per Hospital =
+DIVIDE(
+    [Total Bed Capacity],
+    [Total Hospitals]
+)
+
+Monthly Diagnoses = 
+CALCULATE(
+    COUNTROWS(FACT_DIAGNOSES),
+    TREATAS(
+        VALUES(FACT_ADMISSIONS[admission_id]),
+        FACT_DIAGNOSES[admission_id]
+    )
+)
+
+
+
+Total Admissions = DISTINCTCOUNT(DIM_ADMISSION[admission_id])
+
+Total Patients = DISTINCTCOUNT(DIM_PATIENT[patient_id])
+
+30 Day Readmission Rate = DIVIDE(SUM(FACT_ADMISSIONS[readmitted_within_30_days]),COUNTROWS(FACT_ADMISSIONS))
+
+Average Length of Stay = AVERAGE(FACT_ADMISSIONS[length_of_stay_days])
+
+Total Government Subsidy =SUM(FACT_BILLING[government_subsidy_inr])
+
+Total Patient Out of Pocket = SUM(FACT_BILLING[patient_out_of_pocket_inr])
+
+Total Bed Capacity = SUM(DIM_HOSPITAL[bed_capacity])Insurance Performance = DIVIDE(DIM_PATIENT[Patients by Insurance Type],CALCULATE(DIM_PATIENT[Patients by Insurance Type],ALL(DIM_PATIENT[insurance_type])))
+ICU Admission Share = DIVIDE(CALCULATE(COUNTROWS(FACT_ADMISSIONS),FACT_ADMISSIONS[ward_type] = "ICU"),CALCULATE(COUNTROWS(FACT_ADMISSIONS)))
+
+Average Procedures per Admission = AVERAGE(FACT_ADMISSIONS[procedure_count])
+
+Total Diagnoses = COUNTROWS(FACT_DIAGNOSES)
+
+Admissions by Discharge Status = COUNTROWS(FACT_ADMISSIONS)
+
+Total Patients by Gender = COUNTROWS(DIM_PATIENT)
+
+Age Group =
+SWITCH(
+    TRUE(),
+    DIM_PATIENT[patient_age] <= 17, "0-17",
+    DIM_PATIENT[patient_age] <= 35, "18-35",
+    DIM_PATIENT[patient_age] <= 65, "36-65",
+    "66+"
+)
+
+Patients by Age Group = COUNTROWS(DIM_PATIENT)
+
+Patients by Insurance Type = COUNTROWS(DIM_PATIENT)
+
+Healthcare Cost by Billing Category = SUM(FACT_BILLING[total_cost_inr])
+
+Average LOS by Ward = AVERAGE(FACT_ADMISSIONS[length_of_stay_days])
+
+Admissions by Hospital = COUNTROWS(FACT_ADMISSIONS)
+
+Patients by State = COUNTROWS(DIM_PATIENT)
+
+Monthly Admissions = COUNTROWS(FACT_ADMISSIONS)
+
+Ward Performance =
+VAR WardAdmissions = COUNTROWS(FACT_ADMISSIONS)
+VAR TotalAdmissions =
+    CALCULATE(
+        COUNTROWS(FACT_ADMISSIONS),
+        ALL(FACT_ADMISSIONS[ward_type])
+    )
+RETURN
+DIVIDE(WardAdmissions, TotalAdmissions)
+
+Genral Performance  = DIVIDE(CALCULATE(COUNTROWS(FACT_ADMISSIONS),FACT_ADMISSIONS[ward_type] = 
+"General"),CALCULATE(COUNTROWS(FACT_ADMISSIONS),all(FACT_ADMISSIONS[ward_type])))
+
+HDU Performance =
+DIVIDE(
+    CALCULATE(
+        COUNTROWS(FACT_ADMISSIONS),
+        FACT_ADMISSIONS[ward_type] = "HDU"
+    ),
+    CALCULATE(
+        COUNTROWS(FACT_ADMISSIONS),
+        ALL(FACT_ADMISSIONS[ward_type])
+    )
+)
+
+ICU PERFORMANCE = DIVIDE(CALCULATE(COUNTROWS(FACT_ADMISSIONS),FACT_ADMISSIONS[ward_type] = "HDU"),CALCULATE(COUNTROWS(FACT_ADMISSIONS),ALL(FACT_ADMISSIONS)))
+
+NICU Performance =
+DIVIDE(
+    CALCULATE(
+        COUNTROWS(FACT_ADMISSIONS),
+        FACT_ADMISSIONS[ward_type] = "NICU"
+    ),
+    CALCULATE(
+        COUNTROWS(FACT_ADMISSIONS),
+        ALL(FACT_ADMISSIONS[ward_type])
+    )
+)
+
+Insurance Performance = DIVIDE([Patients by Insurance Type],CALCULATE([Patients by Insurance Type],ALL(DIM_PATIENT[insurance_type])))
+
+Gender Name = SWITCH(DIM_PATIENT[gender],"M","Male","F","Female","Other")
+
+Gender_Performance = DIVIDE([Total Patients by Gender],CALCULATE([Total Patients by Gender],ALL(DIM_PATIENT[Gender Name])))
+
+Gender Remaining = 1 - [Gender_Performance]
+
+LOS Progress =
+DIVIDE(
+    [Average Length of Stay],
+    30
+)
+ICU ADMISSION SHARE  = DIVIDE(CALCULATE(COUNTROWS(DIM_ADMISSION),FACT_ADMISSIONS[ward_type] = "ICU"),COUNTROWS(FACT_ADMISSIONS))
+ICU Share Remaining = 1 - [ICU Admission Share]
+
+
+Procedure Progress =
+DIVIDE(
+    [Average Procedures per Admission],
+    15
+)
+
+Average Charlson Index = AVERAGE(FACT_ADMISSIONS[charlson_comorbidity_index])
+Patient Growth % = 
+VAR CurrentMonthPatients =
+    CALCULATE(
+        [Monthly Patients],
+        LASTDATE(DIM_DATE[Date])
+    )
+VAR PreviousMonthPatients =
+    CALCULATE(
+        [Monthly Patients],
+        DATEADD(DIM_DATE[Date], -1, MONTH)
+    )
+RETURN
+DIVIDE(
+    CurrentMonthPatients - PreviousMonthPatients,
+    PreviousMonthPatients
+)
+
+Admision Growth % = VAR CURENTYEAR = [Total_Admissions]
+VAR PREYEAR = CALCULATE([Total_Admissions],DATEADD(DIM_DATE[Date],-1,YEAR))
+RETURN
+DIVIDE(CURENTYEAR-PREYEAR,PREYEAR,0)
+
+
+Emergency Admission Rate % = 
+DIVIDE(
+    CALCULATE(
+        [Total_Admissions],
+        FACT_ADMISSIONS[Admission_Type] = "Emergency"
+    ),
+    [Total_Admissions],
+    0
+)
+
+
+
+
+
+
+
+
+
+
+
